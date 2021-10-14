@@ -2,6 +2,7 @@
 #define __FEMU_FTL_H
 
 #include "../nvme.h"
+#include "avltree.h"
 
 #define INVALID_PPA     (~(0ULL))
 #define INVALID_LPN     (~(0ULL))
@@ -42,6 +43,8 @@ enum {
     FEMU_RESET_ACCT = 5,
     FEMU_ENABLE_LOG = 6,
     FEMU_DISABLE_LOG = 7,
+
+    BUFFER_PRINT = 8,
 };
 
 
@@ -203,6 +206,10 @@ struct ssd {
     struct write_pointer wp;
     struct line_mgmt lm;
 
+    /* Buffer */
+    struct buffer_info *rbuffer; /* Read cache. */
+    struct buffer_info *wbuffer; /* Write buffer. */
+
     /* lockless ring for communication with NVMe IO thread */
     struct rte_ring **to_ftl;
     struct rte_ring **to_poller;
@@ -211,6 +218,41 @@ struct ssd {
 };
 
 void ssd_init(FemuCtrl *n);
+
+
+
+
+/*******************BUFFER*******************/
+#define DRAM_READ_LATENCY (1000)
+#define DRAM_WRITE_LATENCY (1000)
+
+#define SEC_SIZE (512)
+#define SECS_PER_PG (8)
+
+enum {
+    READ_WRITE_HYBRID = 0,
+    READ_WRITE_PARTITION = 1,
+};
+
+#define BUFFER_SCHEME READ_WRITE_HYBRID
+
+typedef struct buffer_group{
+	TREE_NODE node;                     //The structure of the tree node must be placed at the top of the user-defined structure
+	struct buffer_group *LRU_link_next;	// next node in LRU list
+	struct buffer_group *LRU_link_pre;	// previous node in LRU list
+
+	unsigned int group;                 //the first data logic sector number of a group stored in buffer 
+	unsigned int stored;                //indicate the sector is stored in buffer or not. 1 indicates the sector is stored and 0 indicate the sector isn't stored.EX.  00110011 indicates the first, second, fifth, sixth sector is stored in buffer.
+	bool is_dirty; 
+}buf_node;
+
+int keyCompareFunc(TREE_NODE *p1, TREE_NODE *p2);
+int freeFunc(TREE_NODE *pNode);
+
+uint64_t buffer_insert(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state, bool is_write);
+void buffer_print(struct ssd *ssd);
+
+/*******************BUFFER END*******************/
 
 #ifdef FEMU_DEBUG_FTL
 #define ftl_debug(fmt, ...) \
@@ -228,6 +270,7 @@ void ssd_init(FemuCtrl *n);
 
 
 /* FEMU assert() */
+#define FEMU_DEBUG_FTL
 #ifdef FEMU_DEBUG_FTL
 #define ftl_assert(expression) assert(expression)
 #else

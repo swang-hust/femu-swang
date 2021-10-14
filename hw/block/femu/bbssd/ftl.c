@@ -1,4 +1,5 @@
 #include "ftl.h"
+#include "avltree.h"
 
 //#define FEMU_DEBUG_FTL
 
@@ -236,10 +237,11 @@ static void check_params(struct ssdparams *spp)
 
 static void ssd_init_params(struct ssdparams *spp)
 {
-    spp->secsz = 512;
-    spp->secs_per_pg = 8;
+    spp->secsz = SEC_SIZE;
+    spp->secs_per_pg = SECS_PER_PG;
     spp->pgs_per_blk = 256;
-    spp->blks_per_pl = 256; /* 16GB */
+    // spp->blks_per_pl = 256; /* 16GB */
+    spp->blks_per_pl = 80; /* 8 GB */
     spp->pls_per_lun = 1;
     spp->luns_per_ch = 8;
     spp->nchs = 8;
@@ -360,6 +362,30 @@ static void ssd_init_rmap(struct ssd *ssd)
     }
 }
 
+static void ssd_init_buffer(struct ssd *ssd, uint32_t dramsz_mb) {
+    uint32_t secs_cnt = dramsz_mb * 1024 * 1024 / SEC_SIZE;
+    ssd->wbuffer=avlTreeCreate((void*)keyCompareFunc, (void *)freeFunc);
+    switch (BUFFER_SCHEME)
+    {
+    /* ssd->wbuffer and ssd->rbuffer is in fact the same buffer. */
+    case READ_WRITE_HYBRID:
+        ssd->wbuffer->max_secs = secs_cnt;
+        ssd->rbuffer=ssd->wbuffer;
+        break;
+    
+    /*  */
+    case READ_WRITE_PARTITION:
+        ssd->rbuffer=avlTreeCreate((void*)keyCompareFunc, (void *)freeFunc);
+        ssd->wbuffer->max_secs = secs_cnt / 2;
+        ssd->rbuffer->max_secs = secs_cnt - ssd->wbuffer->max_secs;
+        break;
+
+    default:
+        ftl_assert(0);
+        break;
+    }
+}
+
 void ssd_init(FemuCtrl *n)
 {
     struct ssd *ssd = n->ssd;
@@ -368,6 +394,8 @@ void ssd_init(FemuCtrl *n)
     ftl_assert(ssd);
 
     ssd_init_params(spp);
+
+    ssd_init_buffer(ssd, n->dramsz);
 
     /* initialize ssd internal layout architecture */
     ssd->ch = g_malloc0(sizeof(struct ssd_channel) * spp->nchs);
@@ -770,31 +798,32 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     struct ssdparams *spp = &ssd->sp;
     uint64_t lba = req->slba;
     int nsecs = req->nlb;
-    struct ppa ppa;
+    if (nsecs == 0) return 0;
     uint64_t start_lpn = lba / spp->secs_per_pg;
     uint64_t end_lpn = (lba + nsecs - 1) / spp->secs_per_pg;
     uint64_t lpn;
     uint64_t sublat, maxlat = 0;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        ftl_err("[%s]start_lpn=%"PRIu64",end_lpn=%"PRIu64",tt_pgs=%d\n",__FUNCTION__, start_lpn, end_lpn, ssd->sp.tt_pgs);
     }
 
     /* normal IO read path */
     for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
-        ppa = get_maptbl_ent(ssd, lpn);
-        if (!mapped_ppa(&ppa) || !valid_ppa(ssd, &ppa)) {
-            //printf("%s,lpn(%" PRId64 ") not mapped to valid ppa\n", ssd->ssdname, lpn);
-            //printf("Invalid ppa,ch:%d,lun:%d,blk:%d,pl:%d,pg:%d,sec:%d\n",
-            //ppa.g.ch, ppa.g.lun, ppa.g.blk, ppa.g.pl, ppa.g.pg, ppa.g.sec);
-            continue;
+        uint32_t state = 0, offset1 = 0, offset2 = spp->secs_per_pg - 1;
+        if (lpn == start_lpn)
+            offset1 = lba - lpn * spp->secs_per_pg;
+        if (lpn == end_lpn)
+            offset2 = (lba + nsecs - 1) % spp->secs_per_pg;
+
+        // set_valid
+        for (int i=offset1; i<=offset2; ++i) {
+            state |= (1<<i);
         }
 
-        struct nand_cmd srd;
-        srd.type = USER_IO;
-        srd.cmd = NAND_READ;
-        srd.stime = req->stime;
-        sublat = ssd_advance_status(ssd, &ppa, &srd);
+        printf("[%s]: lpn=%lu, state=%u\n", __FUNCTION__, lpn, state);
+
+        sublat = buffer_insert(ssd, req, lpn, state, false);
         maxlat = (sublat > maxlat) ? sublat : maxlat;
     }
 
@@ -805,16 +834,23 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
 {
     uint64_t lba = req->slba;
     struct ssdparams *spp = &ssd->sp;
+
+    /* state is stored in a uint32_t type. */
+    ftl_assert(spp->secs_per_pg <= 32);
+
     int len = req->nlb;
+
+    /* Border Situation. */
+    if (len == 0) return 0;
+
     uint64_t start_lpn = lba / spp->secs_per_pg;
     uint64_t end_lpn = (lba + len - 1) / spp->secs_per_pg;
-    struct ppa ppa;
     uint64_t lpn;
     uint64_t curlat = 0, maxlat = 0;
     int r;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        ftl_err("start_lpn=%"PRIu64",end_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, end_lpn, ssd->sp.tt_pgs);
     }
 
     while (should_gc_high(ssd)) {
@@ -824,32 +860,21 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
             break;
     }
 
-    for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
-        ppa = get_maptbl_ent(ssd, lpn);
-        if (mapped_ppa(&ppa)) {
-            /* update old page information first */
-            mark_page_invalid(ssd, &ppa);
-            set_rmap_ent(ssd, INVALID_LPN, &ppa);
+    for (lpn = start_lpn; lpn <= end_lpn; lpn++){
+        uint32_t state = 0, offset1 = 0, offset2 = spp->secs_per_pg - 1;
+        if (lpn == start_lpn)
+            offset1 = lba - lpn * spp->secs_per_pg;
+        if (lpn == end_lpn)
+            offset2 = (lba + len - 1) % spp->secs_per_pg;
+
+        // set_valid
+        for (int i=offset1; i<=offset2; ++i) {
+            state |= (1<<i);
         }
 
-        /* new write */
-        ppa = get_new_page(ssd);
-        /* update maptbl */
-        set_maptbl_ent(ssd, lpn, &ppa);
-        /* update rmap */
-        set_rmap_ent(ssd, lpn, &ppa);
+        // printf("[%s]: lpn=%lu, state=%u\n", __FUNCTION__, lpn, state);
 
-        mark_page_valid(ssd, &ppa);
-
-        /* need to advance the write pointer here */
-        ssd_advance_write_pointer(ssd);
-
-        struct nand_cmd swr;
-        swr.type = USER_IO;
-        swr.cmd = NAND_WRITE;
-        swr.stime = req->stime;
-        /* get latency statistics */
-        curlat = ssd_advance_status(ssd, &ppa, &swr);
+        curlat = buffer_insert(ssd, req, lpn, state, true);
         maxlat = (curlat > maxlat) ? curlat : maxlat;
     }
 
@@ -887,9 +912,11 @@ static void *ftl_thread(void *arg)
             switch (req->is_write) {
             case 1:
                 lat = ssd_write(ssd, req);
+                // printf("Lat = %lu\n", lat);
                 break;
             case 0:
                 lat = ssd_read(ssd, req);
+                printf("Lat = %lu\n", lat);
                 break;
             default:
                 ftl_err("FTL received unkown request type, ERROR\n");
@@ -913,3 +940,225 @@ static void *ftl_thread(void *arg)
     return NULL;
 }
 
+
+inline uint32_t bit_count(uint32_t state) {
+    uint32_t res = 0;
+    while (state) {
+        state &= (state-1);
+        res ++;
+    }
+    return res;
+}
+
+int keyCompareFunc(TREE_NODE *p1, TREE_NODE *p2)
+{
+	struct buffer_group *T1=NULL,*T2=NULL;
+
+	T1=(struct buffer_group*)p1;
+	T2=(struct buffer_group*)p2;
+
+	if(T1->group< T2->group) return 1;
+	if(T1->group> T2->group) return -1;
+
+	return 0;
+}
+
+int freeFunc(TREE_NODE *pNode)
+{
+	
+	if(pNode!=NULL)
+	{
+		free((void *)pNode);
+	}
+	
+	pNode=NULL;
+	return 1;
+}
+
+/* 
+ * Search for buffer node with specific LPN;
+ * return NULL (not found) or a ptr.
+ */
+static inline struct buffer_group* buffer_search(tAVLTree *buffer, uint64_t lpn) {
+    struct buffer_group key;
+    key.group = lpn;
+    return (struct buffer_group*)avlTreeFind(buffer, (TREE_NODE *)&key);
+}
+
+/*
+ * Evict the node at the tail (i.e., the MRU side) of the LRU.
+ * Return  latency.
+ */
+static uint64_t buffer_evict(struct ssd *ssd, tAVLTree *buffer, NvmeRequest *req) {
+    uint64_t lat = 0;
+
+    struct buffer_group *pt = buffer->buffer_tail;
+
+    uint32_t state =  pt->stored;
+    uint64_t lpn = pt->group;
+    bool is_dirty = pt->is_dirty;
+
+    // Flush to NAND flash.
+    if (is_dirty) {
+        struct ppa ppa = get_maptbl_ent(ssd, lpn);
+        if (mapped_ppa(&ppa)) {
+            mark_page_invalid(ssd, &ppa);
+            set_rmap_ent(ssd, INVALID_LPN, &ppa);
+        }
+
+         /* new write */
+        ppa = get_new_page(ssd);
+        /* update maptbl */
+        set_maptbl_ent(ssd, lpn, &ppa);
+        /* update rmap */
+        set_rmap_ent(ssd, lpn, &ppa);
+
+        mark_page_valid(ssd, &ppa);
+
+        /* need to advance the write pointer here */
+        ssd_advance_write_pointer(ssd);
+        struct nand_cmd swr;
+        swr.type = USER_IO;
+        swr.cmd = NAND_WRITE;
+        swr.stime = req->stime;
+        lat += ssd_advance_status(ssd, &ppa, &swr);
+    }
+
+    /* Delete node. */
+    buffer->secs_cnt -= bit_count(state);
+    avlTreeDel(buffer, (TREE_NODE *)pt);
+    if (buffer->buffer_head->LRU_link_next == NULL){ /* One node only. */
+        buffer->buffer_head = NULL;
+        buffer->buffer_tail = NULL;
+    }
+    else{
+        buffer->buffer_tail = buffer->buffer_tail->LRU_link_pre;
+        buffer->buffer_tail->LRU_link_next = NULL;
+    }
+    pt->LRU_link_next = NULL;
+    pt->LRU_link_pre = NULL;
+    AVL_TREENODE_FREE(buffer, (TREE_NODE *)pt);
+    pt = NULL;
+
+    return lat;
+}
+
+/*
+ * Insert into buffer, for both read and write.
+ * return the total latency (include buffer eviction)
+ */
+
+uint64_t buffer_insert(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state, bool is_write) {
+    uint64_t lat = DRAM_WRITE_LATENCY;
+    tAVLTree *buffer = is_write ? ssd->wbuffer : ssd->rbuffer;
+    struct buffer_group *old_node = buffer_search(buffer, lpn);
+
+    uint32_t nbits = bit_count(state);
+
+    /* miss */ 
+    if (old_node == NULL) {
+        struct buffer_group *new_node = NULL;
+        new_node = (struct buffer_group *)malloc(sizeof(struct buffer_group));
+        ftl_assert(new_node);
+        new_node->group = lpn;
+        new_node->stored = state;
+        new_node->is_dirty = is_write;
+
+        while (buffer->secs_cnt + nbits > buffer->max_secs) {
+            lat += buffer_evict(ssd, buffer, req);
+        }
+
+        /* Read from NAND flash. */
+        if (!is_write) {
+            struct ppa ppa = get_maptbl_ent(ssd, lpn);
+            if (mapped_ppa(&ppa) && valid_ppa(ssd, &ppa)) {
+                struct nand_cmd srd;
+                srd.type = USER_IO;
+                srd.cmd = NAND_READ;
+                srd.stime = req->stime;
+                lat += ssd_advance_status(ssd, &ppa, &srd);
+            }
+        }
+
+        /* Insert to LRU head. */
+        new_node->LRU_link_pre = NULL;
+        new_node->LRU_link_next = buffer->buffer_head;
+        if (buffer->buffer_head != NULL){
+			buffer->buffer_head->LRU_link_pre = new_node;
+		}
+		else{
+			buffer->buffer_tail = new_node;
+		}
+        buffer->buffer_head = new_node;
+        new_node->LRU_link_pre = NULL;
+		avlTreeAdd(buffer, (TREE_NODE *)new_node);
+        buffer->secs_cnt += nbits;
+        return lat;
+    }
+
+    /* Update dirty bit. */
+    old_node->is_dirty |= is_write;
+    
+    /* partial hit */
+    if (old_node->stored != state) {
+        uint32_t new_state = state | old_node->stored;
+
+        nbits = bit_count(new_state) - bit_count(old_node->stored);
+
+        old_node->stored = new_state;
+        buffer->secs_cnt += nbits;
+
+        if (!is_write) {
+            struct ppa ppa = get_maptbl_ent(ssd, lpn);
+            if (mapped_ppa(&ppa) && valid_ppa(ssd, &ppa)) {
+                struct nand_cmd srd;
+                srd.type = USER_IO;
+                srd.cmd = NAND_READ;
+                srd.stime = req->stime;
+                lat += ssd_advance_status(ssd, &ppa, &srd);
+            }
+        }
+
+    }
+    /* totaly hit */
+    // else;
+
+    
+    /* Move to LRU head. */
+    if (buffer->buffer_head != old_node)
+    {
+        if (buffer->buffer_tail == old_node)
+        {
+            buffer->buffer_tail = old_node->LRU_link_pre;
+            old_node->LRU_link_pre->LRU_link_next = NULL;
+        }
+        else if (old_node != buffer->buffer_head)
+        {
+            old_node->LRU_link_pre->LRU_link_next = old_node->LRU_link_next;
+            old_node->LRU_link_next->LRU_link_pre = old_node->LRU_link_pre;
+        }
+        old_node->LRU_link_next = buffer->buffer_head;
+        buffer->buffer_head->LRU_link_pre = old_node;
+        old_node->LRU_link_pre = NULL;
+        buffer->buffer_head = old_node;
+    }
+
+    while (buffer->secs_cnt > buffer->max_secs) {
+        lat += buffer_evict(ssd, buffer, req);
+    }
+
+    return lat;
+}
+
+
+void buffer_print(struct ssd *ssd) {
+    printf("Entered [%s]\n", __FUNCTION__);
+
+    tAVLTree *buffer = ssd->wbuffer;
+
+    printf("Buffer size = %u, buffer secs = %u\n", buffer->max_secs, buffer->secs_cnt);
+    for (struct buffer_group *pt = buffer->buffer_head; pt!=NULL; pt = pt->LRU_link_next) {
+        printf ("%u[%u]->", pt->group, pt->stored);
+    }
+    return;
+}

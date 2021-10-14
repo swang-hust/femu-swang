@@ -1,0 +1,1 @@
+/home/wangshuai/femu-swang/tests/tcg/lm32/Makefile
