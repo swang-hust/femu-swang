@@ -1,1 +1,0 @@
-/home/wangshuai/femu-swang/pc-bios/optionrom/Makefile
