@@ -821,9 +821,9 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
             state |= (1<<i);
         }
 
-        printf("[%s]: lpn=%lu, state=%u\n", __FUNCTION__, lpn, state);
+        // printf("[%s]: lpn=%lu, state=%u\n", __FUNCTION__, lpn, state);
 
-        sublat = buffer_insert(ssd, req, lpn, state, false);
+        sublat = buffer_read(ssd, req, lpn, state);
         maxlat = (sublat > maxlat) ? sublat : maxlat;
     }
 
@@ -874,7 +874,7 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
 
         // printf("[%s]: lpn=%lu, state=%u\n", __FUNCTION__, lpn, state);
 
-        curlat = buffer_insert(ssd, req, lpn, state, true);
+        curlat = buffer_write(ssd, req, lpn, state);
         maxlat = (curlat > maxlat) ? curlat : maxlat;
     }
 
@@ -912,11 +912,11 @@ static void *ftl_thread(void *arg)
             switch (req->is_write) {
             case 1:
                 lat = ssd_write(ssd, req);
-                // printf("Lat = %lu\n", lat);
+                printf("Write lats = %lu\n", lat);
                 break;
             case 0:
                 lat = ssd_read(ssd, req);
-                printf("Lat = %lu\n", lat);
+                printf("Read lats = %lu\n", lat);
                 break;
             default:
                 ftl_err("FTL received unkown request type, ERROR\n");
@@ -1043,112 +1043,165 @@ static uint64_t buffer_evict(struct ssd *ssd, tAVLTree *buffer, NvmeRequest *req
     return lat;
 }
 
-/*
- * Insert into buffer, for both read and write.
- * return the total latency (include buffer eviction)
- */
-
-uint64_t buffer_insert(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state, bool is_write) {
+uint64_t buffer_write(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state) {
     uint64_t lat = DRAM_WRITE_LATENCY;
-    tAVLTree *buffer = is_write ? ssd->wbuffer : ssd->rbuffer;
+    tAVLTree *buffer = ssd->wbuffer;
     struct buffer_group *old_node = buffer_search(buffer, lpn);
+    
+    uint32_t nsecs = 0;
 
-    uint32_t nbits = bit_count(state);
-
-    /* miss */ 
+    /* buffer miss */
     if (old_node == NULL) {
+        /* create a new */
         struct buffer_group *new_node = NULL;
         new_node = (struct buffer_group *)malloc(sizeof(struct buffer_group));
         ftl_assert(new_node);
         new_node->group = lpn;
         new_node->stored = state;
-        new_node->is_dirty = is_write;
+        new_node->is_dirty = true;
 
-        while (buffer->secs_cnt + nbits > buffer->max_secs) {
-            lat += buffer_evict(ssd, buffer, req);
-        }
-
-        /* Read from NAND flash. */
-        if (!is_write) {
-            struct ppa ppa = get_maptbl_ent(ssd, lpn);
-            if (mapped_ppa(&ppa) && valid_ppa(ssd, &ppa)) {
-                struct nand_cmd srd;
-                srd.type = USER_IO;
-                srd.cmd = NAND_READ;
-                srd.stime = req->stime;
-                lat += ssd_advance_status(ssd, &ppa, &srd);
-            }
-        }
+        nsecs = bit_count(state);
 
         /* Insert to LRU head. */
         new_node->LRU_link_pre = NULL;
         new_node->LRU_link_next = buffer->buffer_head;
         if (buffer->buffer_head != NULL){
-			buffer->buffer_head->LRU_link_pre = new_node;
-		}
-		else{
-			buffer->buffer_tail = new_node;
-		}
+            buffer->buffer_head->LRU_link_pre = new_node;
+        }
+        else{
+            buffer->buffer_tail = new_node;
+        }
         buffer->buffer_head = new_node;
         new_node->LRU_link_pre = NULL;
-		avlTreeAdd(buffer, (TREE_NODE *)new_node);
-        buffer->secs_cnt += nbits;
-        return lat;
+        avlTreeAdd(buffer, (TREE_NODE *)new_node);
     }
+    else {
+        old_node->is_dirty = true;
+        /* partial hit */
+        if (old_node->stored != state) {
+            uint32_t new_state = state | old_node->stored;
+            nsecs = bit_count(new_state) - bit_count(old_node->stored);
+            old_node->stored = new_state;
+        }
 
-    /* Update dirty bit. */
-    old_node->is_dirty |= is_write;
-    
-    /* partial hit */
-    if (old_node->stored != state) {
-        uint32_t new_state = state | old_node->stored;
-
-        nbits = bit_count(new_state) - bit_count(old_node->stored);
-
-        old_node->stored = new_state;
-        buffer->secs_cnt += nbits;
-
-        if (!is_write) {
-            struct ppa ppa = get_maptbl_ent(ssd, lpn);
-            if (mapped_ppa(&ppa) && valid_ppa(ssd, &ppa)) {
-                struct nand_cmd srd;
-                srd.type = USER_IO;
-                srd.cmd = NAND_READ;
-                srd.stime = req->stime;
-                lat += ssd_advance_status(ssd, &ppa, &srd);
+        /* Move to LRU head. */
+        if (buffer->buffer_head != old_node)
+        {
+            if (buffer->buffer_tail == old_node)
+            {
+                buffer->buffer_tail = old_node->LRU_link_pre;
+                old_node->LRU_link_pre->LRU_link_next = NULL;
             }
+            else if (old_node != buffer->buffer_head)
+            {
+                old_node->LRU_link_pre->LRU_link_next = old_node->LRU_link_next;
+                old_node->LRU_link_next->LRU_link_pre = old_node->LRU_link_pre;
+            }
+            old_node->LRU_link_next = buffer->buffer_head;
+            buffer->buffer_head->LRU_link_pre = old_node;
+            old_node->LRU_link_pre = NULL;
+            buffer->buffer_head = old_node;
         }
-
-    }
-    /* totaly hit */
-    // else;
-
-    
-    /* Move to LRU head. */
-    if (buffer->buffer_head != old_node)
-    {
-        if (buffer->buffer_tail == old_node)
-        {
-            buffer->buffer_tail = old_node->LRU_link_pre;
-            old_node->LRU_link_pre->LRU_link_next = NULL;
-        }
-        else if (old_node != buffer->buffer_head)
-        {
-            old_node->LRU_link_pre->LRU_link_next = old_node->LRU_link_next;
-            old_node->LRU_link_next->LRU_link_pre = old_node->LRU_link_pre;
-        }
-        old_node->LRU_link_next = buffer->buffer_head;
-        buffer->buffer_head->LRU_link_pre = old_node;
-        old_node->LRU_link_pre = NULL;
-        buffer->buffer_head = old_node;
     }
 
+    buffer->secs_cnt += nsecs;
     while (buffer->secs_cnt > buffer->max_secs) {
         lat += buffer_evict(ssd, buffer, req);
     }
 
     return lat;
 }
+
+uint64_t buffer_read(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state) {
+    uint64_t lat = DRAM_READ_LATENCY;
+
+    tAVLTree *buffer = ssd->rbuffer;
+    struct buffer_group *old_node = buffer_search(buffer, lpn);
+
+    uint32_t nsecs = 0;
+
+    /* buffer miss */
+    if (old_node == NULL) {
+        struct buffer_group *new_node = NULL;
+        new_node = (struct buffer_group *)malloc(sizeof(struct buffer_group));
+        ftl_assert(new_node);
+        new_node->group = lpn;
+        new_node->stored = state;
+        new_node->is_dirty = false;
+        
+        nsecs = bit_count(state);
+
+        /* Insert to LRU head. */
+        new_node->LRU_link_pre = NULL;
+        new_node->LRU_link_next = buffer->buffer_head;
+        if (buffer->buffer_head != NULL){
+            buffer->buffer_head->LRU_link_pre = new_node;
+        }
+        else{
+            buffer->buffer_tail = new_node;
+        }
+        buffer->buffer_head = new_node;
+        new_node->LRU_link_pre = NULL;
+        avlTreeAdd(buffer, (TREE_NODE *)new_node);
+
+        /* NAND flash. */
+        struct ppa ppa = get_maptbl_ent(ssd, lpn);
+        if (mapped_ppa(&ppa) && valid_ppa(ssd, &ppa)) {
+            struct nand_cmd srd;
+            srd.type = USER_IO;
+            srd.cmd = NAND_READ;
+            srd.stime = req->stime;
+            lat += ssd_advance_status(ssd, &ppa, &srd);
+        }
+    }
+    else {
+        
+        /* Move to LRU head. */
+        if (buffer->buffer_head != old_node)
+        {
+            if (buffer->buffer_tail == old_node)
+            {
+                buffer->buffer_tail = old_node->LRU_link_pre;
+                old_node->LRU_link_pre->LRU_link_next = NULL;
+            }
+            else if (old_node != buffer->buffer_head)
+            {
+                old_node->LRU_link_pre->LRU_link_next = old_node->LRU_link_next;
+                old_node->LRU_link_next->LRU_link_pre = old_node->LRU_link_pre;
+            }
+            old_node->LRU_link_next = buffer->buffer_head;
+            buffer->buffer_head->LRU_link_pre = old_node;
+            old_node->LRU_link_pre = NULL;
+            buffer->buffer_head = old_node;
+        }
+
+        /* Partial hit */
+        if (old_node->stored != state) {
+            uint32_t new_state = state | old_node->stored;
+            nsecs = bit_count(new_state) - bit_count(old_node->stored);
+
+            old_node->stored = new_state;
+
+            /* NAND flash. */
+            struct ppa ppa = get_maptbl_ent(ssd, lpn);
+            if (mapped_ppa(&ppa) && valid_ppa(ssd, &ppa)) {
+                struct nand_cmd srd;
+                srd.type = USER_IO;
+                srd.cmd = NAND_READ;
+                srd.stime = req->stime;
+                lat += ssd_advance_status(ssd, &ppa, &srd);
+            }
+        }
+    }
+
+    buffer->secs_cnt += nsecs;
+    while (buffer->secs_cnt > buffer->max_secs) {
+        lat += buffer_evict(ssd, buffer, req);
+    }
+
+    return lat;
+}
+
 
 
 void buffer_print(struct ssd *ssd) {

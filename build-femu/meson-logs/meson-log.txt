@@ -1,4 +1,4 @@
-Build started at 2021-10-14T21:05:52.978885
+Build started at 2021-10-17T22:30:18.979109
 Main binary: /usr/bin/python3
 Build Options: -Ddocdir=/usr/local/share/doc -Dqemu_firmwarepath=/usr/local/share/qemu-firmware -Dqemu_suffix=qemu -Doptimization=2 -Ddebug=true -Dwerror=true -Dstrip=true -Db_pie=true -Db_staticpic=true -Db_coverage=false -Dmalloc=system -Dmalloc_trim=auto -Dsparse=auto -Dkvm=enabled -Dhax=auto -Dwhpx=auto -Dhvf=auto -Dxen=disabled -Dxen_pci_passthrough=disabled -Dtcg=enabled -Dcocoa=auto -Dmpath=auto -Dsdl=auto -Dsdl_image=auto -Dvnc=enabled -Dvnc_sasl=auto -Dvnc_jpeg=auto -Dvnc_png=auto -Dgettext=true -Dxkbcommon=auto -Du2f=auto -Dvirtiofsd=auto -Dcapstone=auto -Dslirp=auto -Dfdt=auto -Diconv=auto -Dcurses=auto -Dlibudev=auto -Ddocs=auto -Dsphinx_build= -Dinstall_blobs=true -Dvhost_user_blk_server=auto -Dprefix=/usr/local -Dbindir=/usr/local/bin -Ddatadir=/usr/local/share -Dincludedir=/usr/local/include -Dlibdir=/usr/local/lib -Dlibexecdir=/usr/local/libexec -Dlocaledir=/usr/local/share/locale -Dlocalstatedir=/usr/local/var -Dmandir=/usr/local/share/man -Dsysconfdir=/usr/local/etc -Dbackend=ninja
 Python system: Linux
@@ -36,8 +36,8 @@ C++ linker for the host machine: c++ ld.bfd 2.34
 Program cgcc found: NO
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmprzyck5qf
-Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmprzyck5qf/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmprzyck5qf/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -lm -Wl,--end-group -Wl,--allow-shlib-undefined 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpc94r59ht
+Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpc94r59ht/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpc94r59ht/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -lm -Wl,--end-group -Wl,--allow-shlib-undefined 
 
 Code:
  int main(void) { return 0; }
@@ -49,8 +49,8 @@ Compiler stderr:
 Library m found: YES
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpbbje1z64
-Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpbbje1z64/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpbbje1z64/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -lutil -Wl,--end-group -Wl,--allow-shlib-undefined 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpmrawoq_q
+Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpmrawoq_q/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpmrawoq_q/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -lutil -Wl,--end-group -Wl,--allow-shlib-undefined 
 
 Code:
  int main(void) { return 0; }
@@ -64,8 +64,8 @@ Run-time dependency appleframeworks found: NO (tried framework)
 Dependency pixman-1 found: YES 0.38.4 (cached)
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpzn2zvuzl
-Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpzn2zvuzl/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpzn2zvuzl/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -laio -Wl,--end-group -Wl,--allow-shlib-undefined 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmp956kettm
+Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp956kettm/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmp956kettm/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -laio -Wl,--end-group -Wl,--allow-shlib-undefined 
 
 Code:
  int main(void) { return 0; }
@@ -86,8 +86,8 @@ Called `/usr/bin/pkg-config --modversion xkbcommon` -> 1
 Run-time dependency xkbcommon found: NO (tried pkgconfig)
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpshfxi2kt
-Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpshfxi2kt/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpshfxi2kt/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -lrt -Wl,--end-group -Wl,--allow-shlib-undefined 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmp5d0g812i
+Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp5d0g812i/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmp5d0g812i/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -Wl,--start-group -lrt -Wl,--end-group -Wl,--allow-shlib-undefined 
 
 Code:
  int main(void) { return 0; }
@@ -125,8 +125,8 @@ Preliminary CMake check failed. Aborting.
 Run-time dependency libudev found: NO (tried pkgconfig and cmake)
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpx67fsbr1
-Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpx67fsbr1/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpx67fsbr1/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmps0oaphhv
+Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmps0oaphhv/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmps0oaphhv/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 
 
 Code:
  #include<stdio.h>
@@ -147,8 +147,8 @@ Program stderr:
 
 
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpupc0g9e0
-Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpupc0g9e0/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpupc0g9e0/output.obj -pipe -c -D_FILE_OFFSET_BITS=64 -O0 --print-search-dirs 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmp2w3jvbv4
+Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp2w3jvbv4/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmp2w3jvbv4/output.obj -pipe -c -D_FILE_OFFSET_BITS=64 -O0 --print-search-dirs 
 
 Code:
  
@@ -163,7 +163,7 @@ Library mpathpersist found: NO
 Dependency ncursesw found: YES 6.2.20200212 (cached)
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Using cached compile:
-Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpw7_e15l3/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpw7_e15l3/output.exe -pipe -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -Wl,-Bsymbolic-functions -Wl,--start-group -lncursesw -ltinfo -Wl,--end-group 
+Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp_zacb4cv/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmp_zacb4cv/output.exe -pipe -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -Wl,-Bsymbolic-functions -Wl,--start-group -lncursesw -ltinfo -Wl,--end-group 
 
 Code:
  
@@ -185,7 +185,7 @@ Cached compiler stderr:
  
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Using cached compile:
-Cached command line:  cc -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include /home/wangshuai/femu-swang/build-femu/meson-private/tmpjvkrmwif/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpjvkrmwif/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -pthread -Wl,--start-group -lgthread-2.0 -lglib-2.0 -liconv -Wl,--end-group 
+Cached command line:  cc -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include /home/wangshuai/femu-swang/build-femu/meson-private/tmpdavymkbl/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpdavymkbl/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -pthread -Wl,--start-group -lgthread-2.0 -lglib-2.0 -liconv -Wl,--end-group 
 
 Code:
  
@@ -202,7 +202,7 @@ collect2: error: ld returned 1 exit status
 
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Using cached compile:
-Cached command line:  cc -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include /home/wangshuai/femu-swang/build-femu/meson-private/tmp6p3gj3f2/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmp6p3gj3f2/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -pthread -Wl,--start-group -lgthread-2.0 -lglib-2.0 -Wl,--end-group 
+Cached command line:  cc -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include /home/wangshuai/femu-swang/build-femu/meson-private/tmp6yehf2ob/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmp6yehf2ob/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -pthread -Wl,--start-group -lgthread-2.0 -lglib-2.0 -Wl,--end-group 
 
 Code:
  
@@ -237,7 +237,7 @@ Called `/usr/bin/pkg-config --modversion libjpeg` -> 1
 
 Run-time dependency libjpeg found: NO (tried pkgconfig)
 Using cached compile:
-Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp4arlc715/testfile.c -pipe -E -P -D_FILE_OFFSET_BITS=64 -P -O0 -std=gnu99 
+Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp1f8mlgzm/testfile.c -pipe -E -P -D_FILE_OFFSET_BITS=64 -P -O0 -std=gnu99 
 
 Code:
  
@@ -251,7 +251,7 @@ Code:
 Cached compiler stdout:
  
 Cached compiler stderr:
- /home/wangshuai/femu-swang/build-femu/meson-private/tmp4arlc715/testfile.c:4:12: error: #error "Header 'sasl/sasl.h' could not be found"
+ /home/wangshuai/femu-swang/build-femu/meson-private/tmp1f8mlgzm/testfile.c:4:12: error: #error "Header 'sasl/sasl.h' could not be found"
     4 |           #error "Header 'sasl/sasl.h' could not be found"
       |            ^~~~~
 
@@ -270,7 +270,7 @@ Called `/usr/bin/pkg-config --modversion libkeyutils` -> 1
 Run-time dependency libkeyutils found: NO (tried pkgconfig)
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Using cached compile:
-Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmplfi8qzs_/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmplfi8qzs_/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 
+Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpidgdbt0c/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpidgdbt0c/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 
 
 Code:
  
@@ -298,7 +298,7 @@ Cached compiler stderr:
 Checking for function "gettid" : YES (cached)
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Using cached compile:
-Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpq51zm993/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpq51zm993/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 
+Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpvcdwox5w/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpvcdwox5w/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 
 
 Code:
  #include <malloc.h>
@@ -309,7 +309,7 @@ Cached compiler stderr:
  
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Using cached compile:
-Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpr8xmwlqx/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpr8xmwlqx/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 
+Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpumls1aqt/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpumls1aqt/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 
 
 Code:
  
@@ -327,7 +327,7 @@ Cached compiler stdout:
 Cached compiler stderr:
  
 Using cached compile:
-Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpew2wv24c/testfile.c -pipe -E -P -D_FILE_OFFSET_BITS=64 -P -O0 -std=gnu99 
+Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp6u__geqx/testfile.c -pipe -E -P -D_FILE_OFFSET_BITS=64 -P -O0 -std=gnu99 
 
 Code:
  
@@ -341,7 +341,7 @@ Code:
 Cached compiler stdout:
  
 Cached compiler stderr:
- /home/wangshuai/femu-swang/build-femu/meson-private/tmpew2wv24c/testfile.c:4:12: error: #error "Header 'sys/ioccom.h' could not be found"
+ /home/wangshuai/femu-swang/build-femu/meson-private/tmp6u__geqx/testfile.c:4:12: error: #error "Header 'sys/ioccom.h' could not be found"
     4 |           #error "Header 'sys/ioccom.h' could not be found"
       |            ^~~~~
 
@@ -574,7 +574,7 @@ Configuring libslirp-version.h using configuration
 Library fdt found: YES
 None of 'CC_LD' are defined in the environment, not changing global flags.
 Using cached compile:
-Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpv7uqqaa5/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpv7uqqaa5/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -Wl,--start-group /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libfdt.so -Wl,--end-group 
+Cached command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpqcttjice/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpqcttjice/output.exe -pipe -D_FILE_OFFSET_BITS=64 -O0 -std=gnu99 -Wl,--start-group /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libfdt.so -Wl,--end-group 
 
 Code:
  
@@ -934,8 +934,8 @@ qemu 5.2.0
 
 Found ninja-1.10.0 at /usr/bin/ninja
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmp1tpopq0w
-Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmp1tpopq0w/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmp1tpopq0w/output.obj -pipe -c -D_FILE_OFFSET_BITS=64 -O0 --print-search-dirs 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpvqyl_qv3
+Command line:  cc /home/wangshuai/femu-swang/build-femu/meson-private/tmpvqyl_qv3/testfile.c -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpvqyl_qv3/output.obj -pipe -c -D_FILE_OFFSET_BITS=64 -O0 --print-search-dirs 
 
 Code:
  
@@ -947,8 +947,8 @@ libraries: =/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../
 Compiler stderr:
  
 Running compile:
-Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpgv5xbmnb
-Command line:  c++ /home/wangshuai/femu-swang/build-femu/meson-private/tmpgv5xbmnb/testfile.cpp -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpgv5xbmnb/output.obj -pipe -c -D_FILE_OFFSET_BITS=64 -O0 -fpermissive --print-search-dirs 
+Working directory:  /home/wangshuai/femu-swang/build-femu/meson-private/tmpj5k60mog
+Command line:  c++ /home/wangshuai/femu-swang/build-femu/meson-private/tmpj5k60mog/testfile.cpp -o /home/wangshuai/femu-swang/build-femu/meson-private/tmpj5k60mog/output.obj -pipe -c -D_FILE_OFFSET_BITS=64 -O0 -fpermissive --print-search-dirs 
 
 Code:
  

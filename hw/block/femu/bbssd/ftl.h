@@ -249,7 +249,12 @@ typedef struct buffer_group{
 int keyCompareFunc(TREE_NODE *p1, TREE_NODE *p2);
 int freeFunc(TREE_NODE *pNode);
 
-uint64_t buffer_insert(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state, bool is_write);
+
+/* API for buffer */
+uint64_t buffer_write(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state);
+uint64_t buffer_read(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state);
+
+/* Print buffer info */
 void buffer_print(struct ssd *ssd);
 
 /*******************BUFFER END*******************/

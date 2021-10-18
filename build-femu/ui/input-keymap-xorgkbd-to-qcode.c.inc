@@ -1,5 +1,5 @@
 /*
- * This file is auto-generated from keymaps.csv on 2021-10-14 21:06
+ * This file is auto-generated from keymaps.csv on 2021-10-17 22:30
  * Database checksum sha256(ef8f29f4e4294479e2789aa61e410c4b0464d4f0ad16bcc1526086a4f123bc10)
  * To re-generate, run:
  *   keymap-gen --lang=glib2 --varname=qemu_input_map_xorgkbd_to_qcode code-map keymaps.csv xorgkbd qcode
