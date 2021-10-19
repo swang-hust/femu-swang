@@ -830,6 +830,12 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     return maxlat;
 }
 
+/*
+ * The codes has two problem:
+ * 1. the interaction of read/write buffer is not considered.
+ * 2. multiple pages are written to buffer serially, but only one buffer write delay is returned.
+ */
+
 static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
 {
     uint64_t lba = req->slba;
