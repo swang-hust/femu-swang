@@ -4,6 +4,8 @@
 #include "../nvme.h"
 #include "avltree.h"
 
+#define FEMU_DEBUG_FTL
+
 #define INVALID_PPA     (~(0ULL))
 #define INVALID_LPN     (~(0ULL))
 #define UNMAPPED_PPA    (~(0ULL))
@@ -275,7 +277,6 @@ void buffer_print(struct ssd *ssd);
 
 
 /* FEMU assert() */
-#define FEMU_DEBUG_FTL
 #ifdef FEMU_DEBUG_FTL
 #define ftl_assert(expression) assert(expression)
 #else

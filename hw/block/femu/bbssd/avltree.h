@@ -48,6 +48,9 @@ typedef struct buffer_info
 	/* Statistics can be added here */
 	uint32_t max_secs;
 	uint32_t secs_cnt;
+	uint32_t read_hit, write_hit;
+	uint32_t read_partial_hit, write_partial_hit;
+	uint32_t read_miss, write_miss;
 } tAVLTree;
 
 

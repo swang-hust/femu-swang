@@ -241,7 +241,7 @@ static void ssd_init_params(struct ssdparams *spp)
     spp->secs_per_pg = SECS_PER_PG;
     spp->pgs_per_blk = 256;
     // spp->blks_per_pl = 256; /* 16GB */
-    spp->blks_per_pl = 80; /* 8 GB */
+    spp->blks_per_pl = 80; /* 5 GB */
     spp->pls_per_lun = 1;
     spp->luns_per_ch = 8;
     spp->nchs = 8;
@@ -1118,8 +1118,32 @@ uint64_t buffer_write(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t 
     return lat;
 }
 
+static uint32_t read_from_wbuffer(struct ssd *ssd, uint64_t lpn, uint32_t state) {
+    tAVLTree *wbuffer = ssd->wbuffer;
+    struct buffer_group *wnode = buffer_search(wbuffer, lpn);
+    if (wnode != NULL) {
+        state &= (~wnode->stored);
+        if (state == 0) {
+            wbuffer->read_hit ++;
+        }
+        else {
+            wbuffer->read_partial_hit ++;
+        }
+    }
+    else {
+        wbuffer->read_miss ++;
+    }
+    return state;
+}
+
 uint64_t buffer_read(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state) {
     uint64_t lat = DRAM_READ_LATENCY;
+
+    /* check write buffer. */
+    state = read_from_wbuffer(ssd, lpn, state);
+    if (state == 0) { //fully hit in write buffer.
+        return lat;
+    }
 
     tAVLTree *buffer = ssd->rbuffer;
     struct buffer_group *old_node = buffer_search(buffer, lpn);
@@ -1161,20 +1185,19 @@ uint64_t buffer_read(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t s
         }
     }
     else {
-        
         /* Move to LRU head. */
-        if (buffer->buffer_head != old_node)
-        {
-            if (buffer->buffer_tail == old_node)
-            {
+        if (buffer->buffer_head != old_node) {
+            /* Isolate from LRU. */
+            if (buffer->buffer_tail == old_node) {
                 buffer->buffer_tail = old_node->LRU_link_pre;
                 old_node->LRU_link_pre->LRU_link_next = NULL;
             }
-            else if (old_node != buffer->buffer_head)
-            {
+            else {
+                ftl_assert(old_node != buffer->buffer_head);
                 old_node->LRU_link_pre->LRU_link_next = old_node->LRU_link_next;
                 old_node->LRU_link_next->LRU_link_pre = old_node->LRU_link_pre;
             }
+            /* Insert to head of LRU. */
             old_node->LRU_link_next = buffer->buffer_head;
             buffer->buffer_head->LRU_link_pre = old_node;
             old_node->LRU_link_pre = NULL;
@@ -1208,16 +1231,37 @@ uint64_t buffer_read(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t s
     return lat;
 }
 
-
+static void buffer_print_lru(tAVLTree *buffer) {
+#ifdef FEMU_DEBUG_FTL
+    uint32_t secs_cnt = 0;
+#endif //FEMU_DEBUG_FTL
+    struct buffer_group *node = buffer->buffer_head;
+    while (node != NULL) {
+#ifdef FEMU_DEBUG_FTL
+        secs_cnt += bit_count(node->stored);
+#endif //FEMU_DEBUG_FTL
+        printf("%u[%u]->\n", node->group, node->stored);
+        fflush(stdout);
+        node = node->LRU_link_next;
+    }
+#ifdef FEMU_DEBUG_FTL
+    ftl_assert(secs_cnt == buffer->secs_cnt);
+#endif //FEMU_DEBUG_FTL
+    return;
+}
 
 void buffer_print(struct ssd *ssd) {
     printf("Entered [%s]\n", __FUNCTION__);
 
     tAVLTree *buffer = ssd->wbuffer;
-
+    printf("Write buffer:\n");
     printf("Buffer size = %u, buffer secs = %u\n", buffer->max_secs, buffer->secs_cnt);
-    for (struct buffer_group *pt = buffer->buffer_head; pt!=NULL; pt = pt->LRU_link_next) {
-        printf ("%u[%u]->", pt->group, pt->stored);
-    }
+    // buffer_print_lru(buffer);
+
+    buffer = ssd->rbuffer;
+    printf("Read buffer:\n");
+    printf("Buffer size = %u, buffer secs = %u\n", buffer->max_secs, buffer->secs_cnt);
+    // buffer_print_lru(buffer);
+
     return;
 }
