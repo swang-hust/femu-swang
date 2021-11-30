@@ -918,11 +918,11 @@ static void *ftl_thread(void *arg)
             switch (req->is_write) {
             case 1:
                 lat = ssd_write(ssd, req);
-                printf("Write lats = %lu\n", lat);
+                // printf("Write lats = %lu\n", lat);
                 break;
             case 0:
                 lat = ssd_read(ssd, req);
-                printf("Read lats = %lu\n", lat);
+                // printf("Read lats = %lu\n", lat);
                 break;
             default:
                 ftl_err("FTL received unkown request type, ERROR\n");
@@ -1049,12 +1049,56 @@ static uint64_t buffer_evict(struct ssd *ssd, tAVLTree *buffer, NvmeRequest *req
     return lat;
 }
 
+static void buffer_delete_rnode(struct ssd *ssd, uint64_t lpn) {
+    tAVLTree *rbuffer = ssd->rbuffer;
+    struct buffer_group *rnode = buffer_search(rbuffer, lpn);
+    if (rnode != NULL) {
+        uint32_t nsecs = bit_count(rnode->stored);
+        rbuffer->secs_cnt -= nsecs;
+        
+        // delete in LRU list.
+        if (rnode == rbuffer->buffer_head) {
+            if (rnode == rbuffer->buffer_tail) {
+                rbuffer->buffer_tail = NULL;
+                rbuffer->buffer_head = NULL;
+            }
+            else {
+                rbuffer->buffer_head = rnode->LRU_link_next;
+                rbuffer->buffer_head->LRU_link_pre = NULL;
+            }
+            
+        }
+        else if (rnode == rbuffer->buffer_tail) {
+            rbuffer->buffer_tail = rbuffer->buffer_tail->LRU_link_pre;
+            rbuffer->buffer_tail->LRU_link_next = NULL;
+        }
+        else {
+            rnode->LRU_link_next->LRU_link_pre = rnode->LRU_link_pre;
+            rnode->LRU_link_pre->LRU_link_next = rnode->LRU_link_next;
+        }
+        rnode->LRU_link_next = NULL;
+        rnode->LRU_link_pre = NULL;
+
+        //delete in avlTree.
+        avlTreeDel(rbuffer, (TREE_NODE *)rnode);
+        AVL_TREENODE_FREE(rbuffer, (TREE_NODE *)rnode);
+    }
+    return;
+}
+
 uint64_t buffer_write(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t state) {
     uint64_t lat = DRAM_WRITE_LATENCY;
     tAVLTree *buffer = ssd->wbuffer;
     struct buffer_group *old_node = buffer_search(buffer, lpn);
     
     uint32_t nsecs = 0;
+
+
+    // 读写buffer一致性的简单处理：在写的时候直接将整个node在读buffer中删除
+    if (BUFFER_SCHEME == READ_WRITE_PARTITION) {
+        buffer_delete_rnode(ssd, lpn);
+    }
+    
 
     /* buffer miss */
     if (old_node == NULL) {
@@ -1084,7 +1128,7 @@ uint64_t buffer_write(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t 
     else {
         old_node->is_dirty = true;
         /* partial hit */
-        if (old_node->stored != state) {
+        if ((state & (~old_node->stored)) != 0) {
             uint32_t new_state = state | old_node->stored;
             nsecs = bit_count(new_state) - bit_count(old_node->stored);
             old_node->stored = new_state;
@@ -1140,10 +1184,12 @@ uint64_t buffer_read(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t s
     uint64_t lat = DRAM_READ_LATENCY;
 
     /* check write buffer. */
-    state = read_from_wbuffer(ssd, lpn, state);
-    if (state == 0) { //fully hit in write buffer.
-        return lat;
-    }
+    if (BUFFER_SCHEME == READ_WRITE_PARTITION) {
+        state = read_from_wbuffer(ssd, lpn, state);
+        if (state == 0) { //fully hit in write buffer.
+            return lat;
+        }
+    }    
 
     tAVLTree *buffer = ssd->rbuffer;
     struct buffer_group *old_node = buffer_search(buffer, lpn);
@@ -1205,8 +1251,9 @@ uint64_t buffer_read(struct ssd *ssd, NvmeRequest *req, uint64_t lpn, uint32_t s
         }
 
         /* Partial hit */
-        if (old_node->stored != state) {
-            uint32_t new_state = state | old_node->stored;
+        // if (old_node->stored != state) {
+        if ((state & (~old_node->stored)) != 0) {
+            uint32_t new_state = (state | old_node->stored);
             nsecs = bit_count(new_state) - bit_count(old_node->stored);
 
             old_node->stored = new_state;
@@ -1256,12 +1303,12 @@ void buffer_print(struct ssd *ssd) {
     tAVLTree *buffer = ssd->wbuffer;
     printf("Write buffer:\n");
     printf("Buffer size = %u, buffer secs = %u\n", buffer->max_secs, buffer->secs_cnt);
-    // buffer_print_lru(buffer);
+    buffer_print_lru(buffer);
 
     buffer = ssd->rbuffer;
     printf("Read buffer:\n");
     printf("Buffer size = %u, buffer secs = %u\n", buffer->max_secs, buffer->secs_cnt);
-    // buffer_print_lru(buffer);
+    buffer_print_lru(buffer);
 
     return;
 }
